@@ -8,6 +8,8 @@ on:
     push:
         branches:
             -main
+        paths:
+            -Fttx_Project_code.ipynb
 
 jobs:
     Deploy-Production:
