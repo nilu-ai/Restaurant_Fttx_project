@@ -41,18 +41,19 @@ def upload_image():
 
             if not predictions[0].empty and predictions[0].distance[0] < 0.3:
                 identity = predictions[0].identity[0].split("/")[1]
+                print(identity)
+                # conn = sqlite3.connect('users.db')
+                # c = conn.cursor()
+                # c.execute("SELECT id, username FROM users WHERE username = ?", (identity,))
+                # user = c.fetchone()
+                # conn.close()
 
-                conn = sqlite3.connect('users.db')
-                c = conn.cursor()
-                c.execute("SELECT id, username FROM users WHERE username = ?", (identity,))
-                user = c.fetchone()
-                conn.close()
-
-                response = {
-                    'id': user[0],
-                    'username': user[1],
-                    'emotion': face[0]["dominant_emotion"]
-                }
+                # response = {
+                #     'id': user[0],
+                #     'username': user[1],
+                #     'emotion': face[0]["dominant_emotion"]
+                # }
+                response={"predictions":identity, 'emotion': face[0]["dominant_emotion"]}
             else:
                 response = {'prediction': 'unknown User'}
         except Exception as e:
@@ -100,7 +101,7 @@ def upload_image():
                 predictionDiv.innerHTML = JSON.stringify(result, null, 2);
             }
 
-            setInterval(captureAndPredict, 1000);
+            setInterval(captureAndPredict, 4000);
 
             initCamera();
         </script>
@@ -127,15 +128,15 @@ def newuser():
             print(i)
             with open(os.path.join(user_dir, f'photo_{i+1}.jpg'), 'wb') as f:
                 f.write(photo_data)
-        photo_datas = base64.b64decode(photos[0].split(',')[1])
-        with open(os.path.join(user_dir, 'photo_10.jpg'), 'wb') as f:
-            f.write(photo_datas)
-        conn = sqlite3.connect('users.db')
-        c = conn.cursor()
-        print(photo_datas)
-        c.execute("INSERT INTO users (username) VALUES (?)", (username,))
-        conn.commit()
-        conn.close()
+        # photo_datas = base64.b64decode(photos[0].split(',')[1])
+        # with open(os.path.join(user_dir, 'photo_10.jpg'), 'wb') as f:
+        #     f.write(photo_datas)
+        # conn = sqlite3.connect('users.db')
+        # c = conn.cursor()
+        # print(photo_datas)
+        # c.execute("INSERT INTO users (username) VALUES (?)", (username,))
+        # conn.commit()
+        # conn.close()
 
         return jsonify({'status': 'success', 'message': 'User data saved.'})
 
@@ -195,7 +196,7 @@ def newuser():
                            
                             const result = await response.json();
                             
-                            ress.innerHTML = JSON.stringify(result, null, 2);
+                            ress.innerHTML = JSON.stringify(result.message, null, 2);
                             console.log(result);
                         }
                     }
