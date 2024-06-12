@@ -1,5 +1,5 @@
 from deepface import DeepFace
-predictions = DeepFace.find(img_path = "/workspaces/Restaurant_Fttx_project/trainss/Nilesh/WIN_20240531_12_16_18_Pro.jpg", db_path = "trainss",model_name="Facenet512")
+predictions = DeepFace.find(img_path = "/workspaces/Restaurant_Fttx_project/trainss/Nilesh/photo_1.jpg", db_path = "trainss",model_name="Facenet512")
 
 import re
 
@@ -8,7 +8,7 @@ if not predictions[0].empty and predictions[0].distance[0] < 0.3:
   print(data)
   response = {
                     'status': 'success',
-                    'data': data["identity"][0].split("/")[3]
+                    'data': data["identity"][0].split("/")[1]
 
                 }
 else:
@@ -18,5 +18,5 @@ else:
 
 print(response)
 
-face=DeepFace.analyze( "/workspaces/Restaurant_Fttx_project/trainss/Nilesh/WIN_20240531_12_16_18_Pro.jpg", [ 'emotion'])
+face=DeepFace.analyze( "/workspaces/Restaurant_Fttx_project/trainss/Nilesh/photo_1.jpg", [ 'emotion'])
 face[0]["dominant_emotion"]

@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 # Initialize SQLite database
 def init_db():
-    conn = sqlite3.connect('users.db')
+    conn = sqlite3.connect('/workspaces/Restaurant_Fttx_project/users.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +40,7 @@ def upload_image():
             face = DeepFace.analyze(img, ['emotion'])
 
             if not predictions[0].empty and predictions[0].distance[0] < 0.3:
-                identity = predictions[0].identity[0].split("/")[3]
+                identity = predictions[0].identity[0].split("/")[1]
 
                 conn = sqlite3.connect('users.db')
                 c = conn.cursor()
@@ -132,7 +132,8 @@ def newuser():
             f.write(photo_datas)
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
-        c.execute("INSERT INTO users (username, photo) VALUES (?, ?)", (username, photo_datas))
+        print(photo_datas)
+        c.execute("INSERT INTO users (username) VALUES (?)", (username,))
         conn.commit()
         conn.close()
 
@@ -151,11 +152,13 @@ def newuser():
                 <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
                 <label>Name: <input id="username" type="text"/></label>
                 <button id="submitimage">Submit New Data</button>
+                <p id="res"></p>
                 <script>
                     const video = document.getElementById('video');
                     const canvas = document.getElementById('canvas');
                     const submit = document.getElementById('submitimage');
                     const usernameInput = document.getElementById('username');
+                    const ress=document.getElementById('res');
                     let photos = [];
                     let photoCount = 0;
 
@@ -189,7 +192,10 @@ def newuser():
                                     'Content-Type': 'application/json'
                                 }
                             });
+                           
                             const result = await response.json();
+                            
+                            ress.innerHTML = JSON.stringify(result, null, 2);
                             console.log(result);
                         }
                     }
