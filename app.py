@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 # Initialize SQLite database
 def init_db():
-    conn = sqlite3.connect('/workspaces/Restaurant_Fttx_project/users.db')
+    conn = sqlite3.connect('users.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +26,9 @@ def init_db():
     conn.commit()
     conn.close()
 init_db()
-
+@app.route('/a')
+def home():
+    return 'Home Page Route'
 @app.route('/', methods=['GET', 'POST'])
 def upload_image():
     if request.method == 'POST':

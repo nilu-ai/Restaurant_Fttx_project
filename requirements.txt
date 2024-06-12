@@ -1,5 +1,4 @@
+deepface
 flask
 opencv-python
-numpy
-deepface
 db-sqlite3
