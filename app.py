@@ -75,6 +75,10 @@ def home():
         <li>
           <a href="/new_user" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Add New User</a>
         </li>
+         <li>
+          <a href="/update_user" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent" aria-current="page">Update User</a>
+        </li>
+        <li>
         <li>
           <a href="/user" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">View User</a>
         </li>
@@ -392,7 +396,7 @@ def update_user():
         user_id = data['id']
         order_details = data.get('order')
         fav_dish = data.get('fav_dish')
-
+        print(fav_dish)
         try:
             conn = mysql.connector.connect(
                 host='sql12.freesqldatabase.com',
@@ -404,7 +408,7 @@ def update_user():
                 cursor = conn.cursor()
 
                 if order_details:
-                    cursor.execute("INSERT INTO orders (user_id, order_details) VALUES (%s, %s)", (user_id, order_details))
+                    cursor.execute("INSERT INTO orders (user_id, order_details, fav_dish) VALUES (%s, %s)", (user_id, order_details, fav_dish))
                     cursor.execute("UPDATE users SET order_count = order_count + 1 WHERE id = %s", (user_id,))
 
                 if fav_dish:
@@ -465,16 +469,32 @@ def update_user():
            <label class="text-gray-300">ID :<input class="mx-2 ml-10 p-1 border bg-slate-400 text-white" id="id" type="text"/></label>
         <label class="text-gray-300">Order  :<input class="mx-2 ml-4 p-1 border bg-slate-400 text-white" id="order" type="text"/></label>
         <label class="text-gray-300">FavDish:<input class="mx-2 p-1 border bg-slate-400 text-white" id="fav_dish" type="text"/></label>
-        <button  class="bg-blue-300 w-fit items-center flex mx-auto rounded-xl p-2" id="updatedata">Submit New Data</button>
+        <button  class="bg-blue-300 w-fit items-center flex mx-auto rounded-xl p-2" onclick="addorder()">Submit New Data</button>
 
       </div>
 </div>
-        <script>
+     
+
+ <script>
+                function addorder() {
+                console.log("calledmethod")
+                    var id = document.getElementById('id').value;
+                    var order = document.getElementById('order').value;
+                    var fav_dish = document.getElementById('fav_dish').value;
+
+                    fetch('/update_user', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({id: id, order: order, fav_dish:fav_dish})
+                    }).then(response => response.json())
+                      .then(data => alert(data.message));
+                };
+            </script>
 
 
-
-
-        </script>
+        
     </body>
     </html>
     """
