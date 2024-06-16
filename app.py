@@ -5,7 +5,7 @@ import base64
 from deepface import DeepFace
 import os
 import sqlite3
-
+from datetime import datetime, timedelta
 import mysql.connector
 from mysql.connector import Error
 app = Flask(__name__)
@@ -32,6 +32,12 @@ def init_db():
                                 user_id INT,
                                 order_details TEXT,
                                 FOREIGN KEY(user_id) REFERENCES users(id))''')
+            cursor.execute('''CREATE TABLE IF NOT EXISTS visits (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                user_id INT UNIQUE,
+                                visit_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                FOREIGN KEY(user_id) REFERENCES users(id)
+                            )''')
             conn.commit()
         conn.close()
     except Error as e:
@@ -119,7 +125,28 @@ def upload_image():
 
             if not predictions[0].empty and predictions[0].distance[0] < 0.3:
                 identity = predictions[0].identity[0].split("/")[1]
-                print(identity)
+                conn = mysql.connector.connect(
+                    host='sql12.freesqldatabase.com',
+                    user='sql12713824',
+                    password='ds6QqFFFZ6',
+                    database='sql12713824'
+                )
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM users WHERE username = %s", (identity,))
+                userids = cursor.fetchone()
+                if userids:
+                  cursor.execute("""
+                      INSERT INTO visits (user_id, visit_timestamp)
+                      VALUES ((SELECT id FROM users WHERE username = %s), NOW())
+                      ON DUPLICATE KEY UPDATE visit_timestamp = NOW()
+                  """, (identity,))
+                conn.commit()
+
+                conn.close()
+
+
+
+
                 # conn = sqlite3.connect('users.db')
                 # c = conn.cursor()
                 # c.execute("SELECT id, username FROM users WHERE username = ?", (identity,))
@@ -131,6 +158,8 @@ def upload_image():
                 #     'username': user[1],
                 #     'emotion': face[0]["dominant_emotion"]
                 # }
+
+
                 response={"Name":identity, 'emotion': face[0]["dominant_emotion"]}
             else:
                 response = {'prediction': 'unknown User'}
@@ -751,6 +780,7 @@ host='sql12.freesqldatabase.com',            user='sql12713824',
     except Error as e:
         return jsonify({'status': 'error', 'message': str(e)})
     
+
 @app.route('/user')
 def homes():
     return '''
@@ -820,6 +850,169 @@ function send(){
 </body>
 </html>
 '''
+
+@app.route('/today_user',methods=['GET', 'POST'])
+def get_today_users():
+    if request.method == 'POST':
+
+      try:
+          # Connect to MySQL database
+          conn = mysql.connector.connect(
+              host='sql12.freesqldatabase.com',
+              user='sql12713824',
+              password='ds6QqFFFZ6',
+              database='sql12713824'
+          )
+          cursor = conn.cursor()
+
+          # Calculate timestamp 3 hours ago
+          three_hours_ago = datetime.now() - timedelta(hours=3)
+          # cursor.execute("TRUNCATE TABLE visits;")
+          # cursor.execute("DROP TABLE IF EXISTS visits")
+          # # Commit the transaction
+          # conn.commit()
+
+
+          # SQL query to get users who visited in the last 3 hours
+          query = """
+          select * from visits
+          """
+          cursor.execute(query)
+          
+          users = cursor.fetchall()
+          
+
+          # Fetch all results
+          
+          print(users)
+          # Close connection
+          conn.close()
+
+          
+          # response = []
+          # for user in users:
+          #     user_data = {
+          #         'username': user[0],
+          #         'visit_timestamp': user[1].strftime('%Y-%m-%d %H:%M:%S')
+          #     }
+          #     response.append(response)
+
+          return jsonify(users)
+
+      except Error as e:
+          return jsonify({'error': str(e)})
+
+      return jsonify([])  # Return empty list if no users found
+    else:
+        return '''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body>
+    <nav class="bg-white border-gray-200 dark:bg-gray-900">
+  <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+    <a href="https://flowbite.com/" class="flex items-center space-x-3 rtl:space-x-reverse">
+      
+        <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Restra Predict</span>
+    </a>
+    <button data-collapse-toggle="navbar-default" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-default" aria-expanded="false">
+        <span class="sr-only">Open main menu</span>
+        <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1h15M1 7h15M1 13h15"/>
+        </svg>
+    </button>
+    <div class="hidden w-full md:block md:w-auto" id="navbar-default">
+      <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
+        <li>
+          <a href="/" class="block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 dark:text-white md:dark:text-blue-500" aria-current="page">Home</a>
+        </li>
+        <li>
+          <a href="/predict" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Predict</a>
+        </li>
+        <li>
+          <a href="/new_user" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Add New User</a>
+        </li>
+        <li>
+          <a href="/user" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">View User</a>
+        </li>
+        <li>
+          <a href="/add_order" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Add Order</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+        <div class="dark:bg-gray-900 h-screen justify-center items-center flex flex-col my-auto  ">
+
+      <div class="flex flex-col mx-auto  gap-3"> 
+        
+
+    <div id="user-info" class="text-gray-200" >
+          <div id="users-list">
+            <!-- Users data will be rendered here -->
+        </div>
+
+    </div>
+
+      </div>
+</div>
+        <script>
+            
+            const predictionDiv = document.getElementById('prediction');
+            var id = window.location.href.split("/").pop().split("?")[0];
+            const errors = document.getElementById('error');
+
+            async function captureAndPredict() {
+
+
+                console.log(id)
+                const response = await fetch(`/today_user`, {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                 console.log(data)
+                             const usersList = document.getElementById('users-list');
+            usersList.innerHTML = ''; // Clear previous content
+
+            data.forEach(user => {
+                const userElement = document.createElement('div');
+                userElement.classList.add('user');
+                const userId = user[0];
+                const sr = user[1];
+                const date = user[2];
+                const link = `/user/${userId}`;
+
+                userElement.innerHTML = `
+                    <strong>SR:</strong> ${sr}, 
+                    <strong>User ID:</strong> ${userId}, 
+                    <strong>Date:</strong> ${date}, 
+                    <a href="${link}">View Details</a>
+                `;
+
+                usersList.appendChild(userElement);
+            });
+
+            }
+
+            captureAndPredict()
+
+
+        </script>
+    </body>
+    </html>
+'''
+
+
+
 if __name__ == '__main__':
     app.run()
 
