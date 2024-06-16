@@ -986,8 +986,8 @@ def get_today_users():
             data.forEach(user => {
                 const userElement = document.createElement('div');
                 userElement.classList.add('user');
-                const userId = user[0];
-                const sr = user[1];
+                const sr = user[0];
+                const userId = user[1];
                 const date = user[2];
                 const link = `/user/${userId}`;
 
