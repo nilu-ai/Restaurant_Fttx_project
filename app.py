@@ -135,14 +135,16 @@ def upload_image():
                 cursor.execute("SELECT id FROM users WHERE username = %s", (identity,))
                 userids = cursor.fetchone()
                 if userids:
-                  cursor.execute("""
-                      INSERT INTO visits (user_id, visit_timestamp)
-                      VALUES ((SELECT id FROM users WHERE username = %s), NOW())
-                      ON DUPLICATE KEY UPDATE visit_timestamp = NOW()
-                  """, (identity,))
-                conn.commit()
+                    user_id=userids[0]
+                    cursor.execute("""
+                            INSERT INTO visits (user_id, visit_timestamp)
+                              VALUES (%s, NOW())
+                               ON DUPLICATE KEY UPDATE visit_timestamp = NOW()
+                              """, (user_id,))
 
-                conn.close()
+                    conn.commit()
+
+                
 
 
 
@@ -163,9 +165,12 @@ def upload_image():
                 response={"Name":identity, 'emotion': face[0]["dominant_emotion"]}
             else:
                 response = {'prediction': 'unknown User'}
+            cursor.close()
+            conn.close()
         except Exception as e:
             response = {'status': 'error', 'message': str(e)}
         print(response)
+        
         return jsonify(response)
 
     return """
