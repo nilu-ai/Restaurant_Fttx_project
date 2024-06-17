@@ -15,9 +15,9 @@ def init_db():
     try:
         conn = mysql.connector.connect(
             host='sql12.freesqldatabase.com',
-            user='sql12713824',
-            password='ds6QqFFFZ6',  # Replace with your MySQL password
-            database='sql12713824'  # Replace with your MySQL database name
+            user='sql12714446',
+            password='mjm8IAzGtI',  # Replace with your MySQL password
+            database='sql12714446'  # Replace with your MySQL database name
         )
         if conn.is_connected():
             cursor = conn.cursor()
@@ -778,6 +778,7 @@ host='sql12.freesqldatabase.com',            user='sql12713824',
         if conn.is_connected():
             cursor = conn.cursor()
             cursor.execute("DROP TABLE IF EXISTS orders")
+            cursor.execute("DROP TABLE IF EXISTS visits")
             cursor.execute("DROP TABLE IF EXISTS users")
             conn.commit()
             conn.close()
@@ -864,9 +865,9 @@ def get_today_users():
           # Connect to MySQL database
           conn = mysql.connector.connect(
               host='sql12.freesqldatabase.com',
-              user='sql12713824',
-              password='ds6QqFFFZ6',
-              database='sql12713824'
+              user='sql12714446',
+              password='mjm8IAzGtI',
+              database='sql12714446'
           )
           cursor = conn.cursor()
 
