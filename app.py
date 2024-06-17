@@ -35,7 +35,7 @@ def init_db():
             cursor.execute('''CREATE TABLE IF NOT EXISTS visits (
                                 id INT AUTO_INCREMENT PRIMARY KEY,
                                 user_id INT UNIQUE,
-                                visit_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                visit_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                                 FOREIGN KEY(user_id) REFERENCES users(id)
                             )''')
             conn.commit()
@@ -135,10 +135,11 @@ def upload_image():
                 cursor.execute("SELECT id FROM users WHERE username = %s", (identity,))
                 userids = cursor.fetchone()
                 if userids:
+                  print(userids)
                   cursor.execute("""
                       INSERT INTO visits (user_id, visit_timestamp)
-                      VALUES ((SELECT id FROM users WHERE username = %s), NOW())
-                      ON DUPLICATE KEY UPDATE visit_timestamp = NOW()
+                      VALUES ((SELECT id FROM users WHERE username = %s), CURDATE())
+                      ON DUPLICATE KEY UPDATE visit_timestamp = CURDATE()
                   """, (identity,))
                 conn.commit()
 
@@ -238,7 +239,7 @@ def upload_image():
                 
                 pname.innerText = ""
                 pemotion.innerText = ""
-                errors.innerText = result.message
+                errors.innerText = "Face Not Detected"
             }
             else{
                 pname.innerText = result.Name
@@ -774,6 +775,7 @@ host='sql12.freesqldatabase.com',            user='sql12713824',
             cursor = conn.cursor()
             cursor.execute("DROP TABLE IF EXISTS orders")
             cursor.execute("DROP TABLE IF EXISTS users")
+            cursor.execute("DROP TABLE IF EXISTS visits")
             conn.commit()
             conn.close()
             return jsonify({'status': 'success', 'message': 'Database cleared successfully.'})
@@ -869,7 +871,7 @@ def get_today_users():
           three_hours_ago = datetime.now() - timedelta(hours=3)
           # cursor.execute("TRUNCATE TABLE visits;")
           # cursor.execute("DROP TABLE IF EXISTS visits")
-          # # Commit the transaction
+          # # # Commit the transaction
           # conn.commit()
 
 
