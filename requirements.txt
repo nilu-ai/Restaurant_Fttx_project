@@ -2,3 +2,4 @@ deepface
 flask
 opencv-python
 db-sqlite3
+tf-keras
