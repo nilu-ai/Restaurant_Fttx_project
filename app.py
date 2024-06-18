@@ -15,9 +15,9 @@ def init_db():
     try:
         conn = mysql.connector.connect(
             host='sql12.freesqldatabase.com',
-            user='sql12713824',
-            password='ds6QqFFFZ6',  # Replace with your MySQL password
-            database='sql12713824'  # Replace with your MySQL database name
+            user='sql12714446',
+            password='mjm8IAzGtI',  # Replace with your MySQL password
+            database='sql12714446'  # Replace with your MySQL database name
         )
         if conn.is_connected():
             cursor = conn.cursor()
@@ -38,6 +38,20 @@ def init_db():
                                 visit_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                                 FOREIGN KEY(user_id) REFERENCES users(id)
                             )''')
+            cursor.execute('''CREATE TABLE IF NOT EXISTS visits (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                user_id INT UNIQUE,
+                                visit_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                FOREIGN KEY(user_id) REFERENCES users(id))''')
+
+            # Enable event scheduler
+            cursor.execute("SET GLOBAL event_scheduler = ON;")
+
+            # Create the event to delete old visits
+            cursor.execute('''CREATE EVENT IF NOT EXISTS delete_old_visits
+                              ON SCHEDULE EVERY 5 MINUTE
+                              DO
+                              DELETE FROM visits WHERE visit_timestamp < NOW() - INTERVAL 30 MINUTE;''')
             conn.commit()
         conn.close()
     except Error as e:
@@ -127,23 +141,29 @@ def upload_image():
                 identity = predictions[0].identity[0].split("/")[1]
                 conn = mysql.connector.connect(
                     host='sql12.freesqldatabase.com',
-                    user='sql12713824',
-                    password='ds6QqFFFZ6',
-                    database='sql12713824'
+                    user='sql12714446',
+                    password='mjm8IAzGtI',
+                    database='sql12714446'
                 )
                 cursor = conn.cursor()
+
+                # Get user_id from the username
                 cursor.execute("SELECT id FROM users WHERE username = %s", (identity,))
-                userids = cursor.fetchone()
-                if userids:
-                  print(userids)
-                  cursor.execute("""
-                      INSERT INTO visits (user_id, visit_timestamp)
-                      VALUES ((SELECT id FROM users WHERE username = %s), CURDATE())
-                      ON DUPLICATE KEY UPDATE visit_timestamp = CURDATE()
-                  """, (identity,))
+                user_id = cursor.fetchone()
+                
+                if user_id:
+                    user_id = user_id[0]
+                    # Insert or update the visit timestamp
+                    
+                    cursor.execute('''INSERT INTO visits (user_id, visit_timestamp)
+                                      VALUES (%s, CONVERT_TZ(now(), '+00:00', '+12:30'))
+                                      ON DUPLICATE KEY UPDATE visit_timestamp = CONVERT_TZ(now(), '+00:00', '+12:30')''', (user_id,))
+                    
                 conn.commit()
 
                 conn.close()
+                cursor.close()
+                
 
 
 
@@ -291,9 +311,9 @@ def newuser():
             with open(os.path.join(user_dir, 'photo_10.jpg'), 'wb') as f:
                 f.write(photo_datas)
             conn = mysql.connector.connect(
-                host='sql12.freesqldatabase.com',            user='sql12713824',
-            password='ds6QqFFFZ6',   
-            database='sql12713824'              )
+                host='sql12.freesqldatabase.com',            user='sql12714446',
+            password='mjm8IAzGtI',   
+            database='sql12714446'              )
             if conn.is_connected():
                 cursor = conn.cursor()
                 cursor.execute("INSERT INTO users (username,photo) VALUES (%s,%s)", (username,photo_datas))
@@ -430,9 +450,9 @@ def update_user():
         try:
             conn = mysql.connector.connect(
                 host='sql12.freesqldatabase.com',
-            user='sql12713824',
-            password='ds6QqFFFZ6',   
-            database='sql12713824' 
+            user='sql12714446',
+            password='mjm8IAzGtI',   
+            database='sql12714446' 
             )
             if conn.is_connected():
                 cursor = conn.cursor()
@@ -536,9 +556,9 @@ def get_user(user_id):
     if request.method == 'POST':
         try:
             conn = mysql.connector.connect(
-                host='sql12.freesqldatabase.com',            user='sql12713824',
-            password='ds6QqFFFZ6',   
-            database='sql12713824'             )
+                host='sql12.freesqldatabase.com',            user='sql12714446',
+            password='mjm8IAzGtI',   
+            database='sql12714446'             )
             if conn.is_connected():
                 cursor = conn.cursor()
                 cursor.execute("SELECT username, order_count, fav_dish, photo FROM users WHERE id = %s", (user_id,))
@@ -677,9 +697,9 @@ def add_order():
 
         try:
             conn = mysql.connector.connect(
-                host='sql12.freesqldatabase.com',            user='sql12713824',
-            password='ds6QqFFFZ6',   
-            database='sql12713824'             )
+                host='sql12.freesqldatabase.com',            user='sql12714446',
+            password='mjm8IAzGtI',   
+            database='sql12714446'             )
             if conn.is_connected():
                 cursor = conn.cursor()
                 cursor.execute("INSERT INTO orders (user_id, order_details) VALUES (%s, %s)", (user_id, order_details))
@@ -766,16 +786,18 @@ def add_order():
 def clear_db():
     try:
         conn = mysql.connector.connect(
-host='sql12.freesqldatabase.com',            user='sql12713824',
-            password='ds6QqFFFZ6',   
-            database='sql12713824' 
+host='sql12.freesqldatabase.com',            user='sql12714446',
+            password='mjm8IAzGtI',   
+            database='sql12714446' 
  # Replace with your MySQL database name
         )
         if conn.is_connected():
             cursor = conn.cursor()
-            cursor.execute("DROP TABLE IF EXISTS orders")
-            cursor.execute("DROP TABLE IF EXISTS users")
-            cursor.execute("DROP TABLE IF EXISTS visits")
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+            cursor.execute("Truncate table orders")
+            cursor.execute("TRUNCATE TABLE visits")
+            cursor.execute("TRUNCATE TABLE users")
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
             conn.commit()
             conn.close()
             return jsonify({'status': 'success', 'message': 'Database cleared successfully.'})
@@ -861,9 +883,9 @@ def get_today_users():
           # Connect to MySQL database
           conn = mysql.connector.connect(
               host='sql12.freesqldatabase.com',
-              user='sql12713824',
-              password='ds6QqFFFZ6',
-              database='sql12713824'
+              user='sql12714446',
+              password='mjm8IAzGtI',
+              database='sql12714446'
           )
           cursor = conn.cursor()
 
@@ -908,14 +930,15 @@ def get_today_users():
     else:
         return '''
     <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body>
-    <nav class="bg-white border-gray-200 dark:bg-gray-900">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Today's Users</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<nav class="bg-white border-gray-200 dark:bg-gray-900">
   <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
     <a href="https://flowbite.com/" class="flex items-center space-x-3 rtl:space-x-reverse">
       
@@ -949,70 +972,89 @@ def get_today_users():
   </div>
 </nav>
 
-        <div class="dark:bg-gray-900 h-screen justify-center items-center flex flex-col my-auto  ">
-
-      <div class="flex flex-col mx-auto  gap-3"> 
-        
-
-    <div id="user-info" class="text-gray-200" >
-          <div id="users-list">
-            <!-- Users data will be rendered here -->
+    <div class="dark:bg-gray-900 h-screen justify-center items-center flex flex-col my-auto">
+        <div class="flex flex-col mx-auto gap-3">
+            <div id="users-info" class="text-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SR</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list" class="bg-black divide-y divide-gray-200">
+                        <!-- Users data will be rendered here dynamically -->
+                    </tbody>
+                </table>
+            </div>
         </div>
-
     </div>
 
-      </div>
-</div>
-        <script>
-            
-            const predictionDiv = document.getElementById('prediction');
-            var id = window.location.href.split("/").pop().split("?")[0];
-            const errors = document.getElementById('error');
+    <script>
+        const usersList = document.getElementById('users-list');
 
-            async function captureAndPredict() {
-
-
-                console.log(id)
-                const response = await fetch(`/today_user`, {
+        async function fetchTodayUsers() {
+            try {
+                const response = await fetch('/today_user', {
                     method: 'POST',
-
                     headers: {
                         'Content-Type': 'application/json'
                     }
                 });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+
                 const data = await response.json();
-                 console.log(data)
-                             const usersList = document.getElementById('users-list');
+                renderUsers(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                usersList.innerHTML = '<tr><td colspan="4">Error fetching data</td></tr>';
+            }
+        }
+
+        function renderUsers(users) {
             usersList.innerHTML = ''; // Clear previous content
 
-            data.forEach(user => {
-                const userElement = document.createElement('div');
-                userElement.classList.add('user');
-                const sr = user[0];
-                const userId = user[1];
-                const date = user[2];
-                const link = `/user/${userId}`;
-
-                userElement.innerHTML = `
-                    <strong>SR:</strong> ${sr}, 
-                    <strong>User ID:</strong> ${userId}, 
-                    <strong>Date:</strong> ${date}, 
-                    <a href="${link}">View Details</a>
+            users.forEach(user => {
+                const userRow = document.createElement('tr');
+                userRow.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${user[0]}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${user[1]}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formatDate(user[2])}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><a href="/user/${user[1]}" class="text-blue-500 hover:text-blue-700">View Details</a></td>
                 `;
-
-                usersList.appendChild(userElement);
+                usersList.appendChild(userRow);
             });
+        }
 
-            }
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return `${date.getDate()} ${date.toLocaleString('en-us', { month: 'short' })} ${date.getFullYear()}`;
+        }
 
-            captureAndPredict()
+        fetchTodayUsers();
+    </script>
+</body>
+</html>
 
-
-        </script>
-    </body>
-    </html>
 '''
-
+# @app.route('/temp',methods=['GET', 'POST'])
+# def date():
+#     conn = mysql.connector.connect(
+#               host='sql12.freesqldatabase.com',
+#               user='sql12714446',
+#               password='mjm8IAzGtI',
+#               database='sql12714446'
+#           )
+#     cursor = conn.cursor()
+#     print(cursor.execute('''select now()'''))
+#     cursor.close()
+    
+    
 
 
 if __name__ == '__main__':
