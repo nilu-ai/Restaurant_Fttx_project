@@ -32,6 +32,26 @@ def init_db():
                                 user_id INT,
                                 order_details TEXT,
                                 FOREIGN KEY(user_id) REFERENCES users(id))''')
+            cursor.execute('''CREATE TABLE IF NOT EXISTS visits (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                user_id INT UNIQUE,
+                                visit_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                FOREIGN KEY(user_id) REFERENCES users(id)
+                            )''')
+            cursor.execute('''CREATE TABLE IF NOT EXISTS visits (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                user_id INT UNIQUE,
+                                visit_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                FOREIGN KEY(user_id) REFERENCES users(id))''')
+
+            # Enable event scheduler
+            cursor.execute("SET GLOBAL event_scheduler = ON;")
+
+            # Create the event to delete old visits
+            cursor.execute('''CREATE EVENT IF NOT EXISTS delete_old_visits
+                              ON SCHEDULE EVERY 5 MINUTE
+                              DO
+                              DELETE FROM visits WHERE visit_timestamp < NOW() - INTERVAL 30 MINUTE;''')
             conn.commit()
         conn.close()
     except Error as e:
@@ -119,7 +139,35 @@ def upload_image():
 
             if not predictions[0].empty and predictions[0].distance[0] < 0.3:
                 identity = predictions[0].identity[0].split("/")[1]
-                print(identity)
+                conn = mysql.connector.connect(
+                    host='sql12.freesqldatabase.com',
+                    user='sql12714446',
+                    password='mjm8IAzGtI',
+                    database='sql12714446'
+                )
+                cursor = conn.cursor()
+
+                # Get user_id from the username
+                cursor.execute("SELECT id FROM users WHERE username = %s", (identity,))
+                user_id = cursor.fetchone()
+                
+                if user_id:
+                    user_id = user_id[0]
+                    # Insert or update the visit timestamp
+                    
+                    cursor.execute('''INSERT INTO visits (user_id, visit_timestamp)
+                                      VALUES (%s, CONVERT_TZ(now(), '+00:00', '+12:30'))
+                                      ON DUPLICATE KEY UPDATE visit_timestamp = CONVERT_TZ(now(), '+00:00', '+12:30')''', (user_id,))
+                    
+                conn.commit()
+
+                conn.close()
+                cursor.close()
+                
+
+
+
+
                 # conn = sqlite3.connect('users.db')
                 # c = conn.cursor()
                 # c.execute("SELECT id, username FROM users WHERE username = ?", (identity,))
@@ -136,12 +184,9 @@ def upload_image():
                 response={"Name":identity, 'emotion': face[0]["dominant_emotion"]}
             else:
                 response = {'prediction': 'unknown User'}
-            cursor.close()
-            conn.close()
         except Exception as e:
             response = {'status': 'error', 'message': str(e)}
         print(response)
-        
         return jsonify(response)
 
     return """
@@ -748,8 +793,11 @@ host='sql12.freesqldatabase.com',            user='sql12714446',
         )
         if conn.is_connected():
             cursor = conn.cursor()
-            cursor.execute("DROP TABLE IF EXISTS orders")
-            cursor.execute("DROP TABLE IF EXISTS users")
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+            cursor.execute("Truncate table orders")
+            cursor.execute("TRUNCATE TABLE visits")
+            cursor.execute("TRUNCATE TABLE users")
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
             conn.commit()
             conn.close()
             return jsonify({'status': 'success', 'message': 'Database cleared successfully.'})
@@ -826,6 +874,189 @@ function send(){
 </body>
 </html>
 '''
+
+@app.route('/today_user',methods=['GET', 'POST'])
+def get_today_users():
+    if request.method == 'POST':
+
+      try:
+          # Connect to MySQL database
+          conn = mysql.connector.connect(
+              host='sql12.freesqldatabase.com',
+              user='sql12714446',
+              password='mjm8IAzGtI',
+              database='sql12714446'
+          )
+          cursor = conn.cursor()
+
+          # Calculate timestamp 3 hours ago
+          three_hours_ago = datetime.now() - timedelta(hours=3)
+          # cursor.execute("TRUNCATE TABLE visits;")
+          # cursor.execute("DROP TABLE IF EXISTS visits")
+          # # # Commit the transaction
+          # conn.commit()
+
+
+          # SQL query to get users who visited in the last 3 hours
+          query = """
+          select * from visits
+          """
+          cursor.execute(query)
+          
+          users = cursor.fetchall()
+          
+
+          # Fetch all results
+          
+          print(users)
+          # Close connection
+          conn.close()
+
+          
+          # response = []
+          # for user in users:
+          #     user_data = {
+          #         'username': user[0],
+          #         'visit_timestamp': user[1].strftime('%Y-%m-%d %H:%M:%S')
+          #     }
+          #     response.append(response)
+
+          return jsonify(users)
+
+      except Error as e:
+          return jsonify({'error': str(e)})
+
+      return jsonify([])  # Return empty list if no users found
+    else:
+        return '''
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Today's Users</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<nav class="bg-white border-gray-200 dark:bg-gray-900">
+  <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+    <a href="https://flowbite.com/" class="flex items-center space-x-3 rtl:space-x-reverse">
+      
+        <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Restra Predict</span>
+    </a>
+    <button data-collapse-toggle="navbar-default" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-default" aria-expanded="false">
+        <span class="sr-only">Open main menu</span>
+        <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1h15M1 7h15M1 13h15"/>
+        </svg>
+    </button>
+    <div class="hidden w-full md:block md:w-auto" id="navbar-default">
+      <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
+        <li>
+          <a href="/" class="block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 dark:text-white md:dark:text-blue-500" aria-current="page">Home</a>
+        </li>
+        <li>
+          <a href="/predict" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Predict</a>
+        </li>
+        <li>
+          <a href="/new_user" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Add New User</a>
+        </li>
+        <li>
+          <a href="/user" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">View User</a>
+        </li>
+        <li>
+          <a href="/add_order" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Add Order</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+    <div class="dark:bg-gray-900 h-screen justify-center items-center flex flex-col my-auto">
+        <div class="flex flex-col mx-auto gap-3">
+            <div id="users-info" class="text-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SR</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list" class="bg-black divide-y divide-gray-200">
+                        <!-- Users data will be rendered here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const usersList = document.getElementById('users-list');
+
+        async function fetchTodayUsers() {
+            try {
+                const response = await fetch('/today_user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+
+                const data = await response.json();
+                renderUsers(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                usersList.innerHTML = '<tr><td colspan="4">Error fetching data</td></tr>';
+            }
+        }
+
+        function renderUsers(users) {
+            usersList.innerHTML = ''; // Clear previous content
+
+            users.forEach(user => {
+                const userRow = document.createElement('tr');
+                userRow.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${user[0]}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${user[1]}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${formatDate(user[2])}</td>
+                    <td class="px-6 py-4 whitespace-nowrap"><a href="/user/${user[1]}" class="text-blue-500 hover:text-blue-700">View Details</a></td>
+                `;
+                usersList.appendChild(userRow);
+            });
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return `${date.getDate()} ${date.toLocaleString('en-us', { month: 'short' })} ${date.getFullYear()}`;
+        }
+
+        fetchTodayUsers();
+    </script>
+</body>
+</html>
+
+'''
+# @app.route('/temp',methods=['GET', 'POST'])
+# def date():
+#     conn = mysql.connector.connect(
+#               host='sql12.freesqldatabase.com',
+#               user='sql12714446',
+#               password='mjm8IAzGtI',
+#               database='sql12714446'
+#           )
+#     cursor = conn.cursor()
+#     print(cursor.execute('''select now()'''))
+#     cursor.close()
+    
+    
+
+
 if __name__ == '__main__':
     app.run()
 
